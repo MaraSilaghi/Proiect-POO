@@ -1,18 +1,134 @@
 #include<iostream>
-#include <cstring>
-#include<vector>
+#include<set>
+#include <algorithm>
+#include<memory>
 using namespace std;
 
-class SetterGetterNume                     //interfata
+template<typename T>
+class Vector
 {
-public:
-    virtual string getNume() const = 0;
-    virtual void setNume(const string& nume) = 0;
-    virtual ~SetterGetterNume() {}
+  private:
+    int marime;           //nr curent de elemente din vector
+    int nr_max_elem;      //nr maxim de elemente care pot fi stocate in vector
+    T* obiect;
+
+  public:
+    //constructor
+    Vector()
+    {
+        this ->marime = 0;
+        this ->nr_max_elem=0;
+        this ->obiect = new T[nr_max_elem];
+    }
+    //destructor
+    ~Vector()
+    {
+        delete[] obiect;
+    }
+
+    // implementarea push_back-ului - adauga la final obiectul si dubleaza capacitatea vectorului daca e cazul
+    void push_back(const T& valoare)
+    {
+        if (marime == nr_max_elem)
+            {
+            nr_max_elem *= 2;
+            T* obiect_nou = new T[nr_max_elem];
+            for (int i=0; i<marime; i++)
+             obiect_nou[i] = obiect[i];
+            delete[] obiect;
+            obiect = obiect_nou;
+            }
+     obiect[marime++] = valoare;
+    }
+
+    //prin metoda operator[] putem accesa elementele vectorului dupa index
+    T& operator[](const int index)
+     {
+        return obiect[index];
+     }
+
+    //functia size - returneaza lungimea vectorului
+    int size() const
+    {
+        return marime;
+    }
+
+    // functia copy - copiaza continutul altui vector in vectorul curent
+    void copy(const Vector<T>& v)
+    {
+        if (this != &v)
+        {
+            delete[] obiect;
+            marime = v.marime;
+            nr_max_elem = v.nr_max_elem;
+            obiect = new T[nr_max_elem];
+            for (int i = 0; i < marime; i++)
+            {
+                obiect[i] = v.obiect[i];
+            }
+        }
+    }
+
+    // functia erase - sterge un element din vector la indexul dat
+    void erase(const int index)
+    {
+        if (index < marime)
+        {
+            for (int i = index; i < marime - 1; i++)
+            {
+                obiect[i] = obiect[i + 1];
+            }
+            marime--;
+        }
+    }
+
+
+  class VectorIterator
+  {
+  private:
+    T* curent;  // pointer catre elementul curent
+
+  public:
+    // Constructor
+    VectorIterator(T* ptr) : curent(ptr) {}
+
+    T& operator*() const
+    {
+      return *curent; // accesarea elementului
+    }
+
+    VectorIterator& operator++()   //incrementare
+    {
+      ++curent;
+      return *this;
+    }
+
+    bool operator==(const VectorIterator& elem) const    //suprascriere ==
+    {
+      return curent == elem.curent;
+    }
+
+    bool operator!=(const VectorIterator& elem) const     //suprascriere !=
+    {
+      return !(curent == elem.curent);
+    }
+  };
+
+  // iterator care pointeaza catre primul element
+  VectorIterator begin()
+  {
+    return VectorIterator(obiect);
+  }
+
+  // iterator care pointeaza catre ultimul element
+  VectorIterator end()
+  {
+    return VectorIterator(obiect + marime);
+  }
 };
 
 
-class Artist: public SetterGetterNume
+class Artist
     {
     private:
         string nume;
@@ -31,17 +147,15 @@ class Artist: public SetterGetterNume
             this->nationalitate= nationalitate;
         }
 
-        string getNume() const override        //verifica că semnăturile metodei din clasa derivată
-                                               //sunt identice cu cele ale metodei virtuale din clasa de bază
+        string getNume() const
             {
             return nume;
             }
 
-        void setNume(const std::string& nume) override
+        void setNume(const string& nume)
             {
             this->nume = nume;
             }
-    ~Artist() {}
     };
 
 
@@ -96,6 +210,7 @@ public:
     }
 };
 
+
 class Pictura: public Exponat, public Material
     {
     private:
@@ -105,7 +220,7 @@ class Pictura: public Exponat, public Material
         Pictura(string titlu, Artist artist, int an_finisare, string material)
         : Exponat(titlu, an_finisare), Material(material), artist(artist) {}
 
-        //setter, gette
+        //setter, getter
         string getTitlu() const                            //getter pentru nume pictura
             {
                 return titlu;
@@ -120,7 +235,7 @@ class Pictura: public Exponat, public Material
             }
 
         //afisarea datelor prin supraincarcarea operatorului <<
-        friend ostream & operator << (ostream & out , const Pictura &pict)
+        friend ostream & operator << (ostream & out , const Pictura &pict)   //polimorfism
         {
             out <<"Nume pictura: " << pict.titlu  << endl;
             out <<"Nume artist: " << pict.artist.getNume() << endl;
@@ -139,6 +254,11 @@ class Pictura: public Exponat, public Material
                 this->an_finisare = p.an_finisare;
             }
 
+         bool operator== (const Pictura& elem) const
+        {
+            return (this->titlu == elem.titlu && this->material == elem.material && this->an_finisare == elem.an_finisare);
+        }
+
         string get_descriere() const override    //apelam clasa de baza abstracta
         {
            return "Pictura '" + titlu + "', realizata de " + getArtist().getNume();
@@ -147,44 +267,34 @@ class Pictura: public Exponat, public Material
     };
 
 
-class Sculptura: public Exponat, public Material
-{
+class PrintPictura
+    {
     private:
-    Artist artist;
+        string titlu;
+        Artist artist;
+
     public:
-      Sculptura(string titlu, Artist artist, int an_finisare, string material)
-        : Exponat(titlu, an_finisare), Material(material), artist(artist){}
+        //constructori
+        PrintPictura()                           ///constructor fara parametri
+            {
+                this->titlu = "";
+            }
+        PrintPictura(string titlu, Artist artist)   //constructor cu parametri
+            {
+                this->titlu = titlu;         //alocare dinamica
+                this->artist = artist;
 
-    string getTitlu() const
-    {
-        return titlu;
-    }
-
-    Artist getArtist() const
-    {
-        return artist;
-    }
-
-    string getMaterial() const
-    {
-        return material;
-    }
-
-    friend ostream & operator << (ostream & out , const Sculptura &sculpt)
-    {
-        out <<"Nume sculptura: " << sculpt.titlu  << endl;
-        out <<"Nume artist: " << sculpt.artist.getNume() << endl;
-        out << "Material: " << sculpt.material << endl;
-        out << "An finisare sculptura: " << sculpt.an_finisare << endl;
-        return out;
-    }
-
-     string get_descriere() const override             //suprascriere
-    {
-        return "Sculptura " + titlu + ", realizata din " + material;
-    }
-    ~Sculptura(){}
-};
+            }
+        //setter, getter
+        string getTitlu() const                            //getter pentru nume pictura
+            {
+                return titlu;
+            }
+        Artist getArtist() const                           //getter pentru artist
+            {
+             return artist;
+            }
+    };
 
 
 class Vizitator
@@ -194,7 +304,7 @@ class Vizitator
         string statut_vizitator;             //elev, student, pensionar
         int varsta;
         Artist artist_preferat;
-        vector<Pictura*> picturi_cumparate_;
+        set<shared_ptr<PrintPictura>> copii_cumparate_;
     public:
         //constructori
         Vizitator()                           ///constructor fara parametri
@@ -238,21 +348,26 @@ class Vizitator
                 return nume;
             }
 
-        protected:       //functie pe care o apelam in clasa derivata
-        void afiseaza_picturi(vector<Pictura*> picturi_cumparate_)
+    void adaugaPrintCumparat(shared_ptr<PrintPictura> pictura)
+     {
+        copii_cumparate_.insert(pictura);
+     }
+
+        void afiseaza_print()
          {
-            for (int i = 0; i < picturi_cumparate_.size(); i++)
-                cout << picturi_cumparate_[i] -> getTitlu()<<endl;
+            for (auto it = copii_cumparate_.begin(); it != copii_cumparate_.end(); ++it) {
+                cout << "Copie dupa pictura "<<(*it)->getTitlu() << endl;
+         }
             cout<<endl;
         }
 
     };
 
 
-class Cumparator : protected Vizitator
+class Cumparator : public Vizitator
 {
     private:
-        vector<Pictura*> picturi_cumparate_;
+        set<Pictura*> picturi_cumparate_;
     public:
     //constructori - folosesc constructorii clasei de baza
     Cumparator():Vizitator(){}
@@ -261,13 +376,34 @@ class Cumparator : protected Vizitator
     //functie care adauga picturi in vectorul de picturi cumparate al cumparatorului
      void adaugaPicturaCumparata(Pictura* pictura)
      {
-        picturi_cumparate_.push_back(pictura);
+        picturi_cumparate_.insert(pictura);
      }
 
      void afiseaza_picturi_cumparate()
      {
-        afiseaza_picturi(picturi_cumparate_);      //apelam functia din clasa de baza
+       for (auto it = picturi_cumparate_.begin(); it != picturi_cumparate_.end(); ++it)
+       {
+            cout << "Pictura "<<(*it)->getTitlu() << endl;
+            cout<<endl;
+        }
+
+        auto it = find_if(picturi_cumparate_.begin(), picturi_cumparate_.end(), [](Pictura* p) { return p->getMaterial() == "ulei"; });
+        if (it != picturi_cumparate_.end())
+            cout << "Prima pictura cumparata cu tehnica ulei: " << (*it)->getTitlu() << endl;
+        else
+        cout << "Nu s-a gasit nicio pictura cumparata cu tehnica ulei." << endl;
+
+        bool sunt_toate_ulei = toate_ulei(picturi_cumparate_);
+        if (sunt_toate_ulei)
+        cout << "Toate picturile cumparate sunt realizate in tehnica ulei." << endl;
+    else
+        cout << "Nu toate picturile cumparate sunt realizate in tehnica ulei." << endl;
      }
+
+     bool toate_ulei(set<Pictura*>& picturi) const
+     {
+        return all_of(picturi.begin(), picturi.end(), [](Pictura* p) { return p->getMaterial() == "ulei"; });
+      }
 
      string getNume() const            //getter pentru nume - pentru ca vizitator e protected
      {
@@ -312,7 +448,7 @@ class Bilet
             }
 
         //functie de ,,logica de business" - se aplica reducere pretului in functie de statutul vizitatorului (elev, student, pensionar)
-        void Reducere (Vizitator viz)
+        void Reducere (const Vizitator& viz)
         {
             if(viz.getStatutVizitator()=="elev")  this -> pret = pret/3;
             else if (viz.getStatutVizitator()=="student" || viz.getStatutVizitator()=="pensionar") this -> pret = pret/2;
@@ -350,16 +486,23 @@ class Galerie
 {
     private:
         string nume_galerie;
-        vector<Pictura*> colectie_picturi;
-        static int numarPicturi;           //variabila statica
-        static int id_pictura;
-
+        Vector<Pictura*> colectie_picturi;
+        Galerie(){}
     public:
+        static Galerie& getInstanta()
+        {
+            static Galerie g;
+            return g;
+        }
+         Galerie(const Galerie&) = delete;             // ii spunem compilatorului sa nu faca
+         Galerie& operator=(const Galerie&) = delete;   //un constructor de copiere / assignment default
+
+
         //adauga picturi la baza de date a galeriei doar daca nu se regaseste in picturile deja adaugate
         void addPictura(Pictura* pictura)
         {
-            for (int i = 0; i < colectie_picturi.size(); i++)
-                if (colectie_picturi[i] -> getTitlu() == pictura -> getTitlu())
+            for (Vector<Pictura*>::VectorIterator pict = colectie_picturi.begin(); pict != colectie_picturi.end(); ++pict)
+                if ((*pict) -> getTitlu() == pictura -> getTitlu())
                     throw ExceptiePicturaExistenta();                 //exceptie custom
 
             if (pictura->getTitlu().empty())
@@ -367,61 +510,48 @@ class Galerie
             throw ExceptiePicturaInvalida();
             }
             colectie_picturi.push_back(pictura);
-            ++numarPicturi;
-        }
 
-        void stergerePictura(Pictura* p)          //try-catch
-        {
-        try {
-            int ok=0, i;
-            for ( i = 0; i < colectie_picturi.size(); i++)
-                if (colectie_picturi[i] -> getTitlu() == p -> getTitlu())
-                   {ok=1;               //verificam daca pictura este in galerie
-                   break;
-                   }
-            if (ok==0)
-            throw "Pictura pe care vrem sa o stergem nu exista in galerie.";
-            else
-                {colectie_picturi.erase(colectie_picturi.begin() + i);
-                 numarPicturi--;
-                }
-            }
-        catch (const char* eroare)
-            {
-            cout<<endl<<eroare<<endl;
-            }
         }
 
 
         //functie de afisare a picturilor si atributelor lor
         void listaPicturi()
         {
-            for (int i = 0; i < colectie_picturi.size(); i++)
+            for (Vector<Pictura*>::VectorIterator pict = colectie_picturi.begin(); pict != colectie_picturi.end(); ++pict)
             {
-                ++id_pictura;
-                implementID();
-                cout<< colectie_picturi[i] -> getTitlu() << ", " << colectie_picturi[i] -> getArtist().getNume() << ", " << colectie_picturi[i] -> getMaterial()<<endl;
+                cout<< (*pict) -> getTitlu() << ", " << (*pict) -> getArtist().getNume() << ", " << (*pict) -> getMaterial()<<endl;
             }
         }
-        static int getNumarPicturi()      //getter pentru nr_picturi - metoda statica
-        {
-        return numarPicturi;
-        }
 
-        static int implementID()          //metoda statica
+        Vector<Pictura*>& getPicturi()
         {
-            cout<<id_pictura<<':';
+            return colectie_picturi;
         }
-
 };
 
-int Galerie::numarPicturi = 0;
-int Galerie::id_pictura = 0;
+
+template<typename T>                         //metoda template
+bool contine(Vector<T*>& v, T*& element)
+{
+    for (typename Vector<T*>::VectorIterator obiect = v.begin(); obiect!=v.end(); ++obiect)
+        if ((*obiect) == element)
+            return true;
+    return false;
+}
+
+template<>
+bool contine<Pictura>(Vector<Pictura*>& v, Pictura*& pict2)
+{
+    for (Vector<Pictura*>::VectorIterator pict = v.begin(); pict != v.end(); ++pict)
+        if ((*pict)->getTitlu() == pict2->getTitlu())
+            return true;
+    return false;
+}
 
 int main()
 {
-    Galerie galerie;
-
+    Galerie& galerie = Galerie::getInstanta();   //crearea unei noi variabile de tip galerie face referire
+                                                 //la aceeasi instanta statica
     Artist artist1("Vincent van Gogh", "neerlandez");
     Artist artist2("Leonardo da Vinci", "italian");
     Artist artist3("Salvador Dali", "spaniol");
@@ -430,14 +560,16 @@ int main()
     Pictura* pictura2 = new Pictura ("Mona Lisa", artist2, 1503, "Ulei pe lemn");
     Pictura* pictura3 = new Pictura ("The Persistence of Memory", artist3, 1931, "Ulei pe panza");
     Pictura* pictura4 = new Pictura ("Irises", artist1, 1889, "Ulei pe panza");
-    Pictura* pictura5 = new Pictura ("", artist1, 1889, "Ulei pe panza");
 
+    shared_ptr<PrintPictura> pictura1_print = make_shared<PrintPictura>("Starry Night", artist1);
+    shared_ptr<PrintPictura> pictura2_print = make_shared<PrintPictura>("Mona Lisa", artist2);
+    shared_ptr<PrintPictura> pictura3_print = make_shared<PrintPictura>("The Persistence of Memory", artist3);
+    shared_ptr<PrintPictura> pictura4_print = make_shared<PrintPictura>("Irises", artist1);
     try{                                       //try-catch care re-arunca un alt tip de excepție din blocul catch
     galerie.addPictura(pictura1);
     galerie.addPictura(pictura2);
     galerie.addPictura(pictura3);
-    galerie.stergerePictura(pictura2);
-    //galerie.addPictura(pictura5);
+    galerie.addPictura(pictura4);
     } catch (const ExceptiePicturaExistenta& e) {
         cout << "Exceptie: " << e.what() << endl;
         throw;
@@ -448,53 +580,36 @@ int main()
 
     cout<<"Lista picturilor din galerie:"<<endl;
     galerie.listaPicturi(); //afiseaza lista cu picturile si atributele lor
-    cout<<"Numarul de picturi din galerie: "<<Galerie::getNumarPicturi()<<endl;   //folosind static int
+    cout<<endl;
 
+    if (contine(galerie.getPicturi(), pictura1))
+        cout << "Pictura " << pictura1->getTitlu() << " a fost gasita in galerie." << endl;
+    else cout << "Galeria nu contine pictura cautata";
 
     Vizitator vizitator1 ("Ana", "elev", 14, artist2);
     Vizitator vizitator2 ("Mihai", "student", 23, artist1);
     Vizitator vizitator3 ("Andrei", "vizitator", 46, artist2);
-    Cumparator vizitator4 ("Andreea", "pensionar", 82, artist3);
-    Cumparator vizitator5 ("Bogdan", "vizitator", 30, artist1);
+    Cumparator cumparator1 ("Andreea", "pensionar", 82, artist3);
+    Cumparator cumparator2 ("Bogdan", "vizitator", 30, artist1);
 
-    //nu putem realiza vectorul de picturi decat pentru variabilele de tip cumparator
-    vizitator4.adaugaPicturaCumparata(pictura3);
-    vizitator4.adaugaPicturaCumparata(pictura4);
-    cout<<endl<<"Picturi cumparate de "<<vizitator4.getNume()<<":"<<endl;
-    vizitator4.afiseaza_picturi_cumparate();
+    cumparator1.adaugaPicturaCumparata(pictura3);
+    cumparator1.adaugaPicturaCumparata(pictura4);
 
-    //upcasting
-    cout<<"Cele mai apreciate picturi:"<<endl;
-    vector <Exponat*> expozitie;
-    expozitie.push_back(pictura1);         //upcasting intre Pictura și Exponat în momentul
-                                           //creării unui vector de obiecte de tip Exponat
-    expozitie.push_back(pictura3);
-    for (int i=0; i<expozitie.size(); i++)
-        cout<<expozitie[i]->get_descriere() << endl;  //upcasting -se invocă metoda get_descriere()
-    cout<<endl;                                                //a clasei Exponat pentru un obiect de tip Pictura:
+    vizitator1.adaugaPrintCumparat(pictura1_print);
+    vizitator2.adaugaPrintCumparat(pictura1_print);
+    vizitator3.adaugaPrintCumparat(pictura3_print);
 
-
-    cout<<"Sculptor cunoscut:"<<endl;
-    SetterGetterNume* sn = new Artist("Michelangelo", "italian");  //upcasting -pointer de tip sg*
-                                                                 //pentru a referi un obiect de tip Artist
-    cout << sn->getNume() << endl;
-
-    cout<<"Cea mai cunoscuta sculptura a sa:"<<endl;
-    Exponat* e = new Sculptura("David", Artist("Michelangelo Buonarroti", "italian"), 1504, "marmura");
-    cout << e->get_descriere() << endl; //upcasting - se invocă metoda get_descriere() a clasei Exponat
-                                        //pentru un obiect de tip Sculptura
-
-    Pictura* creatie_noua= dynamic_cast<Pictura*>(e);    //downcasting
-    if(creatie_noua!=NULL)
-        cout<<"Adaugam lucrarea la expozitia de picturi";
-    else cout<< "Creatia nu este o pictura, deci nu o putem adauga la galeria de picturi";
+    cout<<endl<<"Print-uri cumparate de "<<vizitator1.getNume()<<":"<<endl;
+    vizitator1.afiseaza_print();
+    cout<<"Print-ul 'Starry Night' a fost cumparat de "<<pictura1_print.use_count()-1<<"ori";
+    cout<<"Print-ul 'The Persistence of Memory' a fost cumparat de "<<pictura3_print.use_count()-1<<"ori";
+    cout<<endl;
+    cout<<"Picturi cumparate de "<<cumparator1.getNume()<<":"<<endl;
+    cumparator1.afiseaza_picturi_cumparate();
 
     delete pictura1;
     delete pictura2;
     delete pictura3;
     delete pictura4;
-    delete pictura5;
-    delete e;
-    delete sn;
     return 0;
 }
